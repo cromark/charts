@@ -1,0 +1,56 @@
+---
+  #
+  
+  #repository: docker.nexus.aetnadigital.net/simpleapp
+  #tag: 0.12.3
+  version: v1
+  
+  replicas: 2
+  
+  istio: true
+  
+  servicemonitor:
+    enabled: true
+    release: prometheus-operator-chart
+    portname: actuator
+  
+  ports:
+  # health check
+    actuator:
+      externalPort: 8081
+      internalPort: 8081
+    api:
+      externalPort: 8082
+      internalPort: 8082
+  
+  specTemplateLabels: {}
+  
+  resources:
+    requests:
+      cpu: 300m
+      memory: 1Gi
+    limits:
+      cpu: 300m
+      memory: 1Gi
+  
+  readinessProbe:
+    httpGet:
+      port: actuator
+      path: /healthz
+    initialDelaySeconds: 30
+    periodSeconds: 30
+  
+  livenessProbe:
+    httpGet:
+      port: actuator
+      path: /healthz
+    initialDelaySeconds: 30
+    periodSeconds: 30
+  
+  env:
+    SIMPLEAPP_VAL: simpleapp-backend
+    SPRING_APPLICATION_NAME: simpleapp-backend
+    OPENTRACING_JAEGER_HTTP_SENDER_URL: http://simplest-collector.hyperion.svc.cluster.local:14268/api/traces
+  
+  secrets: {}
+  

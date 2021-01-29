@@ -1,0 +1,71 @@
+{{- if .Values.gateway.enabled -}}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: {{ .Release.Name }}-gateway
+  namespace: {{ include "ns" . }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - hosts:
+      {{- if .Values.gateway.hostOverride }}
+      - {{ .Values.gateway.hostOverride }}
+      {{- else}}
+      - {{ .Values.gateway.hostPath }}
+      {{- end }}
+      port:
+        name: http
+        number: 80
+        protocol: HTTP
+  {{- if .Values.gateway.tls.enabled }}
+      tls:
+        httpsRedirect: true
+    - hosts:
+      {{- if .Values.gateway.hostOverride }}
+      - {{ .Values.gateway.hostOverride }}
+      {{- else}}
+      - {{ .Values.gateway.hostPath }}
+      {{- end }}
+      port:
+        name: https
+        number: 443
+        protocol: HTTPS
+      tls:
+        credentialName: {{.Values.gateway.tls.credentialName }}
+        mode: SIMPLE
+  {{- end }}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: {{ .Release.Name }}-vs
+  namespace: {{ include "ns" . }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}    
+spec:
+  hosts:
+  {{- if .Values.gateway.hostOverride }}
+  - {{ .Values.gateway.hostOverride }}
+  {{- else}}
+  - {{ .Values.gateway.hostPath }}
+  {{- end }}
+  gateways:
+  - {{ .Release.Name }}-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        port:
+          number: {{ .Values.ports.http.externalPort }}
+        host: {{ .Release.Name }}.{{ .Release.Namespace }}.svc.cluster.local
+{{- end -}}

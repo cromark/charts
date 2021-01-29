@@ -1,0 +1,181 @@
+---
+# Source: mycro-service/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: hyperion
+  name: simpleapp-frontend
+  labels:
+    app: simpleapp-frontend
+    app.kubernetes.io/part-of: simpleapp-frontend
+  annotations:
+    prometheus.io/probe: "true"
+spec:
+  type: ClusterIP
+  ports:
+    - name: actuator
+      port: 8081
+      protocol: TCP
+      targetPort: 8081
+    - name: api
+      port: 8082
+      protocol: TCP
+      targetPort: 8082
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080 
+  selector:
+    app: simpleapp-frontend
+---
+# Source: mycro-service/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: hyperion
+  name: simpleapp-frontend
+  annotations:
+    author: "health-cloud"
+    app.kubernetes.io/instance: simpleapp-frontend
+    app.kubernetes.io/part-of: simpleapp-frontend
+    app.kubernetes.io/name: simpleapp-frontend
+spec:
+  minReadySeconds: 5
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 60
+  strategy:
+    rollingUpdate:
+    type: RollingUpdate
+  replicas: 2
+  selector:
+    matchLabels:
+      app: simpleapp-frontend
+  template:
+    metadata:
+      labels:
+        app: simpleapp-frontend
+        app.kubernetes.io/part-of: simpleapp-frontend
+        version: v1
+      annotations:
+        prometheus.io/probe: "true"
+        prometheus.io/scape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      imagePullSecrets:
+        - name: registry
+      containers:
+        - name: simpleapp-frontend
+          image: "docker.nexus.aetnadigital.net/simpleapp:0.12.9"
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: 300m
+              memory: 1Gi
+            requests:
+              cpu: 300m
+              memory: 1Gi
+          ports:
+            - name: actuator
+              containerPort: 8081
+            - name: api
+              containerPort: 8082
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: actuator
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: actuator
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          env:
+            - name: OPENTRACING_JAEGER_HTTP_SENDER_URL
+              value: "http://simplest-collector.hyperion.svc.cluster.local:14268/api/traces"
+            - name: SIMPLEAPP_CHECK_URL
+              value: "http://simpleapp-backend.hyperion.svc:8080"
+            - name: SIMPLEAPP_VAL
+              value: "simpleapp-frontend"
+            - name: SPRING_APPLICATION_NAME
+              value: "simpleapp-frontend"
+---
+# Source: mycro-service/templates/gateway.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: simpleapp-frontend-gateway
+  namespace: hyperion
+  labels:
+    app.kubernetes.io/part-of: simpleapp-frontend
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - hosts:
+      - simpleapp-frontend.general.rc.hci.aetna.com
+      port:
+        name: http
+        number: 80
+        protocol: HTTP
+      tls:
+        httpsRedirect: true
+    - hosts:
+      - simpleapp-frontend.general.rc.hci.aetna.com
+      port:
+        name: https
+        number: 443
+        protocol: HTTPS
+      tls:
+        credentialName: istio-system-wildcard-tls
+        mode: SIMPLE
+---
+# Source: mycro-service/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: servicemonitor
+metadata:
+  name: simpleapp-frontend
+  namespace: hyperion
+  labels:
+    app: simpleapp-frontend
+    app.kubernetes.io/part-of: simpleapp-frontend
+    release: prometheus-operator-chart
+spec:
+  selector:
+    matchLabels:
+      app: simpleapp-frontend
+  namespaceSelector:
+    matchNames:
+      - hyperion
+  endpoints:
+  - port: actuator
+    scheme: http
+    path: /metrics
+    interval: 15s
+    honorLabels: true
+---
+# Source: mycro-service/templates/gateway.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: simpleapp-frontend-vs
+  namespace: hyperion
+  labels:
+    app.kubernetes.io/part-of: simpleapp-frontend
+spec:
+  hosts:
+  - simpleapp-frontend.general.rc.hci.aetna.com
+  gateways:
+  - simpleapp-frontend-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        port:
+          number: 8080
+        host: simpleapp-frontend.hyperion.svc.cluster.local

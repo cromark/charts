@@ -1,0 +1,91 @@
+---
+#
+replicas: 2
+#
+configmap:
+  #name: foobar
+  # default is .Release.Name
+  data:
+    ini: |
+      [default]
+        key=value
+        foo=bar
+    json: |
+      {
+        foo: 'bar'
+      }
+    yaml: |
+      info:
+        foo: 'bar'
+      }
+ports:
+  http:
+    internalPort: 9898
+    externalPort: 9898
+
+#servicemonitor:
+#  enabled: true
+#  release: prometheus-operator
+#  portname: http
+
+livenessProbe:
+  exec:
+    command:
+    - podcli
+    - check
+    - http
+    - localhost:9898/healthz
+  initialDelaySeconds: 5
+  timeoutSeconds: 5
+readinessProbe:
+  exec:
+    command:
+    - podcli
+    - check
+    - http
+    - localhost:9898/readyz
+  initialDelaySeconds: 5
+  timeoutSeconds: 5
+resources:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+env:
+  PODINFO_UI_COLOR: blue
+  PODINFO_UI_MESSAGE: "Eat at Joe's"
+
+secrets: {}
+
+ingress:
+  enabled: true
+  #hostOverride: podinfo-canary2.192.168.1.22.xip.io
+  tls: false
+
+canary:
+  enabled: false
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+  matches:
+    # curl -H 'X-Canary: insider' http://podinfo-blue-green.192.168.146.166.xip.io/
+    - headers:
+        x-canary:
+          exact: "insider"
+
+  metrics:
+    - name: request-success-rate
+      thresholdRange:
+        min: 99
+      interval: 1m
+
+  webhooks:
+    - name: load-test
+      url: http://flagger-loadtester.test/
+      timeout: 5s
+      metadata:
+        cmd: "hey -z 1m -q 10 -c 2 -H \"X-Canary: insider\" http://podinfo-canary2.192.168.146.166.xip.io/"

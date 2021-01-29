@@ -1,0 +1,17 @@
+{{- if .Values.configmap -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  {{- if .Values.configmap.name -}}
+  name: {{ .Values.configmap.name }}
+  {{- else }}
+  name: {{ .Release.Name }}
+  {{- end }}
+  namespace: {{ include "ns" . }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
+data:
+  {{- .Values.configmap.data | toYaml | trim | nindent 2 }}
+{{- end -}}

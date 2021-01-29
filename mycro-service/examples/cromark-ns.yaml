@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    istio-injection: enabled
+    owner: cromark
+    cost-center: "12345"
+    cluster: hc-dev
+    environment: dev
+  name: cromark

@@ -1,0 +1,109 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+  labels:
+    app: squid
+  name: squid
+  namespace: cromark
+spec:
+  ports:
+  - name: squid
+    port: 3128
+    protocol: TCP
+    targetPort: 3128
+  selector:
+    app: squid
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: squid
+    org: cromark
+  name: squid
+  namespace: cromark
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: squid
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: squid
+    spec:
+      containers:
+      - image: docker.nexus.aetnadigital.net/sameersbn/squid:3.5.27
+        imagePullPolicy: Always
+        name: squid
+        ports:
+        - containerPort: 3128
+          name: http
+          protocol: TCP
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/squid
+          name: squid-conf
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: squid-conf
+        name: squid-conf
+---
+apiVersion: v1
+data:
+  squid.conf: |
+    #Recommended minimum configuration:
+    #acl manager proto cache_object
+    #acl localhost src 127.0.0.1/32
+    #acl to_localhost dst 127.0.0.0/8
+    acl localnet src 0.0.0.0/8
+    acl SSL_ports port 443
+    acl Safe_ports port 80          # http
+    acl Safe_ports port 443         # https
+    acl Safe_ports port 1025-65535  # unregistered ports
+    acl Safe_ports port 280         # http-mgmt
+    
+    acl CONNECT method CONNECT
+    
+    http_access allow manager localhost
+    http_access deny manager
+    http_access deny !Safe_ports
+    
+    http_access deny to_localhost
+    icp_access deny all
+    htcp_access deny all
+    
+    # no cache
+    # https://serverfault.com/questions/358754/how-to-make-squid-work-like-proxy-only-without-caching-anything/358761
+    cache deny all
+    cache_dir null /tmp
+
+    http_port 3128 accel vhost allow-direct
+    
+    hierarchy_stoplist cgi-bin ?
+    #access_log /var/log/squid3/access.log squid
+    
+    #Suggested default:
+    refresh_pattern .               0       20%     4320
+    # Leave coredumps in the first cache dir
+    #coredump_dir /var/spool/squid3
+    
+    # Allow all machines to all sites
+    http_access allow all
+    #
+kind: ConfigMap
+metadata:
+  name: squid-conf
+  namespace: cromark
+
+

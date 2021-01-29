@@ -1,0 +1,85 @@
+---
+#
+imagename: docker.nexus.aetnadigital.com/hccisvc/ingester:0.9.2
+
+service:
+  selector:
+    app: ingester-primary
+
+servicemonitor:
+  enabled: true
+  portname: actuator
+
+ports:
+  http:
+    internalPort: 8080
+    externalPort: 8080
+  actuator:
+    internalPort: 8081
+    externalPort: 8081
+
+resources:
+  requests:
+    cpu: 300m
+    memory: 1Gi
+  limits:
+    cpu: 300m
+    memory: 1Gi
+
+readinessProbe:
+  httpGet:
+    port: actuator
+    path: /healthz
+  initialDelaySeconds: 30
+  periodSeconds: 30
+
+livenessProbe:
+  httpGet:
+    port: actuator
+    path: /healthz
+  initialDelaySeconds: 30
+  periodSeconds: 30
+
+env:
+  SIMPLEAPP_VAL: blue
+
+secrets: {}
+
+ingress:
+  enabled: true
+  class: nginx
+  hostOverride: ingester.192.168.146.166.xip.io
+  tls: false
+
+canary:
+
+  enabled: true
+  progressDeadlineSeconds: 900
+
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+
+  matches:
+    # curl -H 'X-Canary: insider' http://ingester.192.168.146.166.xip.io/
+    - headers:
+        x-canary:
+          exact: "insider"
+    # curl -b 'canary=always' http://ingester.192.168.146.166.xip.io/
+    - headers:
+        cookie:
+          exact: "canary"
+
+  metrics:
+    - name: request-success-rate
+      thresholdRange:
+        min: 99
+      interval: 1m
+
+  webhooks:
+    - name: load-test
+      url: http://flagger-loadtester.test/
+      timeout: 5s
+      metadata:
+        cmd: "hey -z 1m -q 10 -c 2 -H \"Cookie: canary=always\" http://ingester.192.168.146.166.xip.io/"

@@ -1,0 +1,32 @@
+{{- if .Values.servicemonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: servicemonitor
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ include "ns" . }}
+  labels:
+    app: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
+    release: {{ .Values.servicemonitor.release | default "prometheus" }}
+  {{- range $key, $value := .Values.servicemonitor.labels }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+    {{- range $key, $value := .Values.servicemonitor.matchLabels }}
+      {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+  - port: {{ required "A valid .Value.servicemonitor.portname entry required!" .Values.servicemonitor.portname }}
+    scheme: {{ .Values.servicemonitor.scheme | default "http" }}
+    path: {{ .Values.servicemonitor.path | default "/metrics" }}
+    interval: {{ .Values.servicemonitor.interval | default "15s" }}
+    honorLabels: {{ .Values.servicemonitor.honorLabels | default "true" }}
+{{- end }}
