@@ -1,9 +1,0 @@
-apiVersion: v2
-description: generic micro-service
-name: mycro-service
-version: 0.10.0
-appVersion: 1.0.0
-home: https://git.aetna.com/digital-cloud
-sources:
- - https://git.aetna.com/digital-cloud/helm-charts
-icon: https://payorsolutions.cvshealth.com/sites/default/files/cvs-health-payor-solutions-transforming-the-consumer-health-care-model-main-icon-image.gif

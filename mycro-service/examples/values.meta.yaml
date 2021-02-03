@@ -1,5 +1,0 @@
----
-# global    meta information for helm charts
-vaultURL:  https://vault.mgmt.hci.aetna.com
-ingress:
-  class: nginx
