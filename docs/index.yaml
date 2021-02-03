@@ -1,0 +1,22 @@
+apiVersion: v1
+entries:
+  application:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2021-02-02T18:49:01.907307-05:00"
+    description: application
+    digest: 4537166144d8dc8be030e86770bd67bac40c8abc5d34c9e7531a9e25cc1bbba4
+    name: application
+    urls:
+    - application-1.0.0.tgz
+    version: 1.0.0
+  mycro-service:
+  - apiVersion: v1
+    created: "2021-02-02T18:49:01.90785-05:00"
+    description: generic micro-service
+    digest: ec4d0cf242b6a495145a77f423514c7ae920f2ab7642939ea9dd13d4396d4005
+    name: mycro-service
+    urls:
+    - mycro-service-0.0.9.tgz
+    version: 0.0.9
+generated: "2021-02-02T18:49:01.906734-05:00"
